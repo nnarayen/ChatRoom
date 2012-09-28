@@ -1,0 +1,14 @@
+--- 
+applications: 
+  .: 
+    mem: 64M
+    url: ${name}.${target-base}
+    infra: hp
+    framework: 
+      info: 
+        exec: 
+        mem: 64M
+        description: Node.js Application
+      name: node
+    instances: 1
+    name: chatroom
