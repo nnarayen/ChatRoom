@@ -1,12 +1,27 @@
 <html>
   <body>
-    <h3>Welcome to the chat</h1>
+    <h3>Chat Server</h3>
+    <span id="your_name" style="font-size: 18px"></span></br>
+    <span id="current_room" curr_room='General'>Your Current Room: <i>General</i></span></br></br>
  
     <label for="msg-input">Type your Message!</label>
+    
     <input id="msg-input" name="msg-input" type="text" size="30" />
     <p>Press enter to submit your message</p>
- 
-    <ul id="broadcast-msg"></ul>
+    
+    <div id="chat_rooms" style="position:absolute; left:400px; bottom:570px">
+    	<strong>Open Chat Rooms:</strong></br>
+    	<div id="chat_names" style="position:inherit"></div>
+    </div>
+    
+    <ul id="broadcast-msg"></ul></br>
+    <strong>
+    	Have Joined Your Room:
+    </strong>
+    	
+    <div id="connected_users"></div>
+    </br></br>
+    <button id="new_room" style="font-size:13px">Create New Room!</button>
  
     <!-- Include the socket.io javascript on the client side -->
     <script src="socket.io/socket.io.js"></script>
@@ -16,28 +31,89 @@
     <script>
       // Establish the connection with the server
       var socket = io.connect('http://localhost'); 
+      //var socket = io.connect('http://testapps.jit.su'); 
  
       // on every message recived we print the new datas inside the #broadcast-msg div
-      socket.on('broadcast_msg', function (data) {
+      socket.on('broadcast_msg', function (data, curr_room) {
+      	if (curr_room != $('#current_room').attr('curr_room') && curr_room != 'everybody_receives') {
+      		return;
+      	}
         console.log('Get broadcasted msg:', data);
         var msg = '<li>' + data + '</li>';
         $('#broadcast-msg').append(msg);
+      });
+      
+      socket.on('update_users', function (data, curr_room, user_arr) {
+      	if (curr_room != $('#current_room').attr('curr_room')) {
+      		return;
+      	}
+      	console.log('Getting All Users', data);
+      	$('#connected_users').empty();
+      	if (curr_room == 'General') {
+      		for (var i=0; i<data.length; i++) {
+      			var name = data[i]['name'];
+      			var their_room = getCurrentRoom(name, user_arr);
+      			$('#connected_users').append(name + ' (<i>' + their_room + '</i>)</br>');
+      		}
+      		return;
+      	}
+      	for (var i=0; i<data.length; i++) {
+      		var their_room = getCurrentRoom(data[i], user_arr);
+      		$('#connected_users').append(data[i] + ' (<i>' + their_room + '</i>)</br>');
+      	}
+      });
+      
+      function getCurrentRoom(name, user_arr) {
+      	for (var i=0; i<user_arr.length; i++) {
+      		if (user_arr[i]['name'] == name) {
+      			return user_arr[i]['curr_room'];
+      		}
+      	}
+      }
+      
+      socket.on('update_rooms', function (data) {
+      	$('#chat_names').empty();
+      	$('#chat_names').append('<span class="chat_room">General</span></br>');
+      	for (var i=0; i<data.length; i++) {
+      		$('#chat_names').append('<span class="chat_room">' + data[i]['room_name'] + '</span></br>');
+      	}
+      });
+      
+      socket.on('welcome', function(name) {
+      	if ($('#your_name').text() != '') {return;}
+      	$('#your_name').append('Welcome ' + name + '!');
       });
  
       // Create a new socket connection
       socket.on('connect', function() {
  
         socket.emit('set nickname', prompt('What is your nickname?'));
- 
-        $('#msg-input').change( function(){
+        
+        $('#msg-input').change( function() {
           var txt = $(this).val();
           $(this).val('');
           socket.emit('emit_msg', txt, function (data){
             console.log('Emit Broadcast msg', data);
           });
         });
- 
       });
+      
+      socket.on('adding_room', function (data) {
+      	$('#chat_names').append('<span class="chat_room">' + data + '</span></br>');
+      });
+      
+      $("#new_room").click(function(e) {
+      	socket.emit('add_room', prompt('What is the name of your chat room?'));
+      });
+      
+      $('.chat_room').live('click',function() {
+      	var chat_room_name = $(this).text();
+      	socket.emit('joining_room', chat_room_name);
+      	$('#current_room').attr('curr_room', chat_room_name);
+      	$('#current_room').empty();
+      	$('#current_room').append('Your Current Room: <i>' + chat_room_name + '</i>');
+      });
+      
     </script>
   </body>
 </html>
